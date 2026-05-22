@@ -9,6 +9,6 @@ mkdir -p "$(dirname "$OUTPUT")"
 mkdir -p "$GOCACHE"
 
 cd "$ROOT_DIR"
-GOCACHE="$GOCACHE" CGO_ENABLED="${CGO_ENABLED:-0}" go build -trimpath -ldflags="-s -w" -o "$OUTPUT" .
+GOCACHE="$GOCACHE" CGO_ENABLED="${CGO_ENABLED:-1}" go build -trimpath -ldflags="-s -w" -o "$OUTPUT" .
 
 echo "Built $OUTPUT"
