@@ -24,6 +24,7 @@ const (
 	defaultBadge     = "DEV PORTAL / 个人导航站"
 	defaultSubtitle  = "聚合了常用网站"
 	defaultHeroTitle = "常用站点导航"
+	defaultTheme     = "dark"
 	sessionTTL       = 24 * time.Hour
 )
 
@@ -200,6 +201,7 @@ func normalizeSettings(settings domain.AppSettings) domain.AppSettings {
 	settings.Badge = strings.TrimSpace(settings.Badge)
 	settings.Subtitle = strings.TrimSpace(settings.Subtitle)
 	settings.HeroTitle = strings.TrimSpace(settings.HeroTitle)
+	settings.Theme = strings.TrimSpace(settings.Theme)
 	if settings.SiteTitle == "" {
 		settings.SiteTitle = defaultSiteTitle
 	}
@@ -211,6 +213,9 @@ func normalizeSettings(settings domain.AppSettings) domain.AppSettings {
 	}
 	if settings.HeroTitle == "" {
 		settings.HeroTitle = defaultHeroTitle
+	}
+	if settings.Theme != "morning" && settings.Theme != "forest" && settings.Theme != "plum" {
+		settings.Theme = defaultTheme
 	}
 	return settings
 }

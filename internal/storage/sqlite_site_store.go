@@ -125,6 +125,8 @@ func (s *SQLiteSiteStore) GetSettings() (domain.AppSettings, error) {
 			settings.Subtitle = value
 		case "heroTitle":
 			settings.HeroTitle = value
+		case "theme":
+			settings.Theme = value
 		}
 	}
 	return settings, rows.Err()
@@ -149,6 +151,7 @@ func (s *SQLiteSiteStore) SaveSettings(settings domain.AppSettings) error {
 		"badge":     settings.Badge,
 		"subtitle":  settings.Subtitle,
 		"heroTitle": settings.HeroTitle,
+		"theme":     settings.Theme,
 	}
 	for key, value := range values {
 		if _, err := stmt.Exec(key, value); err != nil {

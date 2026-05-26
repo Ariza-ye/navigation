@@ -40,4 +40,5 @@ type AppSettings struct {
 	Badge     string `json:"badge"`
 	Subtitle  string `json:"subtitle"`
 	HeroTitle string `json:"heroTitle"`
+	Theme     string `json:"theme"`
 }
