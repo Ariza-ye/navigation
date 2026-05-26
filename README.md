@@ -183,6 +183,7 @@ docker run -p 8080:8080 -v "$PWD/data:/app/data" navigation
 ### 分类
 
 - `GET /api/categories`：获取分类列表，结果包含 `全部`。
+- `PUT /api/categories/{name}`：重命名分类，请求体为 `{"name":"新分类名"}`；响应包含 `renamedSites`。
 - `DELETE /api/categories/{name}`：删除分类，并将该分类下站点的分类清空；响应包含 `uncategorizedSites`。
 - `GET /api/category-stats`：获取每个分类的站点数量。
 

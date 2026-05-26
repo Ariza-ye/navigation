@@ -31,13 +31,13 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("/api/session", h.handleSession)
 	mux.HandleFunc("/api/logout", h.requireAuth(h.handleLogout))
 	mux.HandleFunc("/api/account", h.requireAuth(h.handleAccount))
-	mux.HandleFunc("/api/settings", h.requireAuth(h.handleSettings))
-	mux.HandleFunc("/api/sites", h.requireAuth(h.handleSites))
+	mux.HandleFunc("/api/settings", h.handleSettings)
+	mux.HandleFunc("/api/sites", h.handleSites)
 	mux.HandleFunc("/api/sites/", h.requireAuth(h.handleSiteByID))
-	mux.HandleFunc("/api/categories", h.requireAuth(h.handleCategories))
+	mux.HandleFunc("/api/categories", h.handleCategories)
 	mux.HandleFunc("/api/categories/", h.requireAuth(h.handleCategoryByName))
-	mux.HandleFunc("/api/category-stats", h.requireAuth(h.handleCategoryStats))
-	mux.HandleFunc("/api/stats", h.requireAuth(h.handleStats))
+	mux.HandleFunc("/api/category-stats", h.handleCategoryStats)
+	mux.HandleFunc("/api/stats", h.handleStats)
 	mux.Handle("/static/", http.FileServerFS(h.static))
 	mux.HandleFunc("/", h.serveIndex)
 	return mux
@@ -45,18 +45,25 @@ func (h *Handler) Routes() http.Handler {
 
 func (h *Handler) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		cookie, err := r.Cookie("navigation_session")
-		if err != nil || cookie.Value == "" {
-			writeError(w, http.StatusUnauthorized, "请先登录")
-			return
-		}
-		if _, ok := h.auth.UserBySession(cookie.Value); !ok {
-			clearSessionCookie(w)
-			writeError(w, http.StatusUnauthorized, "登录已失效")
+		if !h.ensureAuth(w, r) {
 			return
 		}
 		next(w, r)
 	}
+}
+
+func (h *Handler) ensureAuth(w http.ResponseWriter, r *http.Request) bool {
+	cookie, err := r.Cookie("navigation_session")
+	if err != nil || cookie.Value == "" {
+		writeError(w, http.StatusUnauthorized, "请先登录")
+		return false
+	}
+	if _, ok := h.auth.UserBySession(cookie.Value); !ok {
+		clearSessionCookie(w)
+		writeError(w, http.StatusUnauthorized, "登录已失效")
+		return false
+	}
+	return true
 }
 
 func (h *Handler) serveIndex(w http.ResponseWriter, r *http.Request) {
@@ -152,6 +159,9 @@ func (h *Handler) handleSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, settings)
 	case http.MethodPut:
+		if !h.ensureAuth(w, r) {
+			return
+		}
 		var input domain.AppSettings
 		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 			writeError(w, http.StatusBadRequest, "请求数据格式不正确")
@@ -173,6 +183,9 @@ func (h *Handler) handleSites(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		h.listSites(w, r)
 	case http.MethodPost:
+		if !h.ensureAuth(w, r) {
+			return
+		}
 		h.createSite(w, r)
 	default:
 		writeError(w, http.StatusMethodNotAllowed, "不支持的请求方法")
@@ -266,21 +279,35 @@ func (h *Handler) handleCategoryByName(w http.ResponseWriter, r *http.Request) {
 	}
 	name = strings.TrimSpace(name)
 	if name == "" || name == "全部" {
-		writeError(w, http.StatusBadRequest, "不能删除这个分类")
+		writeError(w, http.StatusBadRequest, "分类名称不正确")
 		return
 	}
 
-	if r.Method != http.MethodDelete {
+	switch r.Method {
+	case http.MethodDelete:
+		updated, err := h.service.DeleteCategory(name)
+		if err != nil {
+			h.writeServiceError(w, err, "没有找到这个分类")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]int{"uncategorizedSites": updated})
+	case http.MethodPut:
+		var input struct {
+			Name string `json:"name"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+			writeError(w, http.StatusBadRequest, "请求数据格式不正确")
+			return
+		}
+		updated, err := h.service.RenameCategory(name, input.Name)
+		if err != nil {
+			h.writeServiceError(w, err, "没有找到这个分类")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"name": strings.TrimSpace(input.Name), "renamedSites": updated})
+	default:
 		writeError(w, http.StatusMethodNotAllowed, "不支持的请求方法")
-		return
 	}
-
-	updated, err := h.service.DeleteCategory(name)
-	if err != nil {
-		h.writeServiceError(w, err, "没有找到这个分类")
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]int{"uncategorizedSites": updated})
 }
 
 func (h *Handler) handleCategoryStats(w http.ResponseWriter, r *http.Request) {

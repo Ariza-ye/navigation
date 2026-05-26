@@ -239,6 +239,9 @@
   .danger-btn:hover { background:var(--danger-bg); color:var(--danger-text); filter:brightness(1.05); }
   .category-list { display:flex; flex-direction:column; gap:10px; max-height:420px; overflow:auto; }
   .category-row { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:13px 14px; border-radius:16px; border:1px solid var(--border-soft); background:var(--surface); }
+  .category-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+  .category-actions .ghost-btn,
+  .category-actions .danger-btn { height:34px; }
   .category-info b { display:block; margin-bottom:3px; }
   .category-info small { color:var(--page-soft); }
   .auth-screen { position:fixed; inset:0; display:grid; place-items:center; padding:24px; background:oklch(12% .035 260 / .86); backdrop-filter:blur(16px); z-index:30; }

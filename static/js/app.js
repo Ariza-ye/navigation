@@ -23,7 +23,7 @@
       { name: '森屿', value: 'forest', swatch: 'oklch(82% .13 132)' },
       { name: '梅雾', value: 'plum', swatch: 'oklch(68% .14 325)' }
     ];
-    const themeStorageKey = 'navigation.theme';
+    const themeStorageKey = 'navigation.theme.override';
 
     const state = {
       sites: [],
@@ -67,6 +67,7 @@
       authScreen: document.querySelector('#authScreen'),
       loginForm: document.querySelector('#loginForm'),
       loginError: document.querySelector('#loginError'),
+      closeLoginBtn: document.querySelector('#closeLoginBtn'),
       currentUsername: document.querySelector('#currentUsername'),
       userMenu: document.querySelector('#userMenu'),
       userMenuBtn: document.querySelector('#userMenuBtn'),
@@ -82,6 +83,7 @@
       closeSettingsDialogBtn: document.querySelector('#closeSettingsDialogBtn'),
       settingsForm: document.querySelector('#settingsForm'),
       settingsError: document.querySelector('#settingsError'),
+      defaultThemeInput: document.querySelector('#defaultThemeInput'),
       heroBadge: document.querySelector('#heroBadge'),
       heroTitle: document.querySelector('#heroTitle'),
       heroSubtitle: document.querySelector('#heroSubtitle'),
@@ -95,21 +97,31 @@
       return themeOptions.find(theme => theme.value === state.theme) || themeOptions[0];
     }
 
+    function hasTheme(theme) {
+      return themeOptions.some(option => option.value === theme);
+    }
+
+    function normalizedTheme(theme) {
+      return hasTheme(theme) ? theme : themeOptions[0].value;
+    }
+
     function storedTheme() {
       try {
         const value = localStorage.getItem(themeStorageKey);
-        return themeOptions.some(theme => theme.value === value) ? value : themeOptions[0].value;
+        return hasTheme(value) ? value : null;
       } catch (error) {
-        return themeOptions[0].value;
+        return null;
       }
     }
 
-    function applyTheme(theme) {
-      const nextTheme = themeOptions.some(option => option.value === theme) ? theme : themeOptions[0].value;
+    function applyTheme(theme, persist = false) {
+      const nextTheme = normalizedTheme(theme);
       state.theme = nextTheme;
       document.body.dataset.theme = nextTheme;
       if (els.themeToggleText) els.themeToggleText.textContent = `主题：${currentTheme().name}`;
       renderThemeMenu();
+      if (!persist) return;
+
       try {
         localStorage.setItem(themeStorageKey, nextTheme);
       } catch (error) {
@@ -146,40 +158,58 @@
     }
 
     async function requestJSON(url, options = {}) {
+      const { authPrompt = true, ...fetchOptions } = options;
       const response = await fetch(url, {
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        ...options
+        ...fetchOptions
       });
       if (response.status === 204) return null;
       const data = await response.json();
-      if (response.status === 401) showLogin();
+      if (response.status === 401 && authPrompt) showLogin();
       if (!response.ok) throw new Error(data.error || '请求失败');
       return data;
     }
 
+    function updateAuthUI() {
+      const authenticated = Boolean(state.user);
+      els.currentUsername.textContent = authenticated ? state.user.username : '登录';
+      els.addBtn.hidden = !authenticated;
+      els.manageCategoriesBtn.hidden = !authenticated;
+      els.userDropdown.classList.remove('open');
+      renderSites(state.sites);
+    }
+
+    function setAnonymous() {
+      state.user = null;
+      document.querySelector('#accountUsername').value = '';
+      els.authScreen.classList.add('hidden');
+      updateAuthUI();
+    }
+
+    function hideLogin(user) {
+      state.user = user;
+      document.querySelector('#accountUsername').value = user.username;
+      els.authScreen.classList.add('hidden');
+      updateAuthUI();
+    }
+
     function showLogin() {
       state.user = null;
+      updateAuthUI();
       els.authScreen.classList.remove('hidden');
       document.querySelector('#loginPassword').value = '';
       document.querySelector('#loginUsername').focus();
     }
 
-    function hideLogin(user) {
-      state.user = user;
-      els.currentUsername.textContent = user.username;
-      document.querySelector('#accountUsername').value = user.username;
-      els.authScreen.classList.add('hidden');
-    }
-
     async function bootstrap() {
       try {
-        const user = await requestJSON('/api/session');
+        const user = await requestJSON('/api/session', { authPrompt: false });
         hideLogin(user);
-        await loadAll();
       } catch (error) {
-        showLogin();
+        setAnonymous();
       }
+      await loadAll();
     }
 
     async function login(event) {
@@ -226,34 +256,33 @@
     }
 
     function applySettings(settings) {
+      const defaultTheme = normalizedTheme(settings.theme);
       document.title = settings.siteTitle;
       els.heroBadge.textContent = settings.badge;
       els.heroTitle.textContent = settings.heroTitle;
       els.heroSubtitle.textContent = settings.subtitle;
-      applyTheme(settings.theme || storedTheme());
+      applyTheme(storedTheme() || defaultTheme);
       document.querySelector('#siteTitleInput').value = settings.siteTitle;
       document.querySelector('#badgeInput').value = settings.badge;
       document.querySelector('#heroTitleInput').value = settings.heroTitle;
       document.querySelector('#subtitleInput').value = settings.subtitle;
+      renderDefaultThemeOptions(defaultTheme);
     }
 
-    async function saveTheme(theme) {
-      const previousTheme = state.theme;
-      applyTheme(theme);
-      if (!state.settings) return;
+    function renderDefaultThemeOptions(selectedTheme) {
+      const activeTheme = normalizedTheme(selectedTheme);
+      els.defaultThemeInput.innerHTML = '';
+      themeOptions.forEach(theme => {
+        const option = document.createElement('option');
+        option.value = theme.value;
+        option.textContent = theme.name;
+        option.selected = theme.value === activeTheme;
+        els.defaultThemeInput.appendChild(option);
+      });
+    }
 
-      const nextSettings = { ...state.settings, theme };
-      try {
-        const settings = await requestJSON('/api/settings', {
-          method: 'PUT',
-          body: JSON.stringify(nextSettings)
-        });
-        state.settings = settings;
-        applySettings(settings);
-      } catch (error) {
-        applyTheme(previousTheme);
-        alert(error.message);
-      }
+    function saveTheme(theme) {
+      applyTheme(theme, true);
     }
 
     async function loadSitesOnly() {
@@ -390,10 +419,10 @@
         card.rel = 'noopener noreferrer';
         card.style.setProperty('--glow', site.glow || 'rgba(96,165,250,.45)');
         card.innerHTML = `
-          <div class="card-actions">
+          ${state.user ? `<div class="card-actions">
             <button class="icon-btn" type="button" data-action="edit" title="编辑">✎</button>
             <button class="icon-btn" type="button" data-action="delete" title="删除">×</button>
-          </div>
+          </div>` : ''}
           <div class="icon"></div>
           <h3></h3>
           <p></p>
@@ -402,19 +431,25 @@
         card.querySelector('.icon').textContent = site.icon || '🔗';
         card.querySelector('h3').textContent = site.name;
         card.querySelector('p').textContent = site.description || site.category;
-        card.querySelector('[data-action="edit"]').addEventListener('click', event => {
-          event.preventDefault();
-          openDialog(site);
-        });
-        card.querySelector('[data-action="delete"]').addEventListener('click', async event => {
-          event.preventDefault();
-          await deleteSite(site);
-        });
+        if (state.user) {
+          card.querySelector('[data-action="edit"]').addEventListener('click', event => {
+            event.preventDefault();
+            openDialog(site);
+          });
+          card.querySelector('[data-action="delete"]').addEventListener('click', async event => {
+            event.preventDefault();
+            await deleteSite(site);
+          });
+        }
         els.grid.appendChild(card);
       });
     }
 
     function openDialog(site = null) {
+      if (!state.user) {
+        showLogin();
+        return;
+      }
       els.form.reset();
       els.formError.textContent = '';
       els.dialogTitle.textContent = site ? '编辑站点' : '新增站点';
@@ -439,6 +474,10 @@
     }
 
     async function openCategoryDialog() {
+      if (!state.user) {
+        showLogin();
+        return;
+      }
       els.categoryList.innerHTML = '<div class="empty">正在加载分类...</div>';
       els.categoryDialog.classList.add('open');
       els.categoryDialog.setAttribute('aria-hidden', 'false');
@@ -457,6 +496,10 @@
     }
 
     function openAccountDialog() {
+      if (!state.user) {
+        showLogin();
+        return;
+      }
       els.accountError.textContent = '';
       document.querySelector('#accountUsername').value = state.user?.username || '';
       document.querySelector('#currentPassword').value = '';
@@ -472,6 +515,10 @@
     }
 
     function openSettingsDialog() {
+      if (!state.user) {
+        showLogin();
+        return;
+      }
       els.settingsError.textContent = '';
       if (state.settings) applySettings(state.settings);
       els.settingsDialog.classList.add('open');
@@ -499,17 +546,25 @@
             <b></b>
             <small></small>
           </div>
-          <button class="danger-btn" type="button">删除</button>
+          <div class="category-actions">
+            <button class="ghost-btn" type="button" data-action="rename">编辑</button>
+            <button class="danger-btn" type="button" data-action="delete">删除</button>
+          </div>
         `;
         row.querySelector('b').textContent = category.name;
         row.querySelector('small').textContent = `${category.count} 个站点`;
-        row.querySelector('button').addEventListener('click', () => deleteCategory(category));
+        row.querySelector('[data-action="rename"]').addEventListener('click', () => renameCategory(category));
+        row.querySelector('[data-action="delete"]').addEventListener('click', () => deleteCategory(category));
         els.categoryList.appendChild(row);
       });
     }
 
     async function saveSite(event) {
       event.preventDefault();
+      if (!state.user) {
+        showLogin();
+        return;
+      }
       els.formError.textContent = '';
       const id = document.querySelector('#siteId').value;
       const payload = {
@@ -535,18 +590,51 @@
     }
 
     async function deleteSite(site) {
+      if (!state.user) {
+        showLogin();
+        return;
+      }
       if (!confirm(`确定删除「${site.name}」吗？`)) return;
       await requestJSON(`/api/sites/${site.id}`, { method: 'DELETE' });
       await loadAll();
     }
 
     async function deleteCategory(category) {
+      if (!state.user) {
+        showLogin();
+        return;
+      }
       const message = `确定删除「${category.name}」分类吗？该分类下的 ${category.count} 个站点会保留，但分类会被清空。`;
       if (!confirm(message)) return;
 
       try {
         await requestJSON(`/api/categories/${encodeURIComponent(category.name)}`, { method: 'DELETE' });
         if (state.category === category.name) state.category = '全部';
+        await loadAll();
+        await openCategoryDialog();
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+
+    async function renameCategory(category) {
+      if (!state.user) {
+        showLogin();
+        return;
+      }
+
+      const nextName = prompt('请输入新的分类名称', category.name);
+      if (nextName === null) return;
+
+      const normalizedName = nextName.trim();
+      if (!normalizedName || normalizedName === category.name) return;
+
+      try {
+        const result = await requestJSON(`/api/categories/${encodeURIComponent(category.name)}`, {
+          method: 'PUT',
+          body: JSON.stringify({ name: normalizedName })
+        });
+        if (state.category === category.name) state.category = result.name;
         await loadAll();
         await openCategoryDialog();
       } catch (error) {
@@ -584,7 +672,7 @@
             badge: document.querySelector('#badgeInput').value,
             heroTitle: document.querySelector('#heroTitleInput').value,
             subtitle: document.querySelector('#subtitleInput').value,
-            theme: state.theme
+            theme: els.defaultThemeInput.value
           })
         });
         state.settings = settings;
@@ -598,7 +686,7 @@
     async function logout() {
       await requestJSON('/api/logout', { method: 'POST' }).catch(() => null);
       els.userDropdown.classList.remove('open');
-      showLogin();
+      setAnonymous();
     }
 
     function debounce(fn, delay = 250) {
@@ -627,7 +715,14 @@
     els.emojiSelectBtn.addEventListener('click', openEmojiDialog);
     els.manageCategoriesBtn.addEventListener('click', openCategoryDialog);
     els.loginForm.addEventListener('submit', login);
-    els.userMenuBtn.addEventListener('click', () => els.userDropdown.classList.toggle('open'));
+    els.closeLoginBtn.addEventListener('click', setAnonymous);
+    els.userMenuBtn.addEventListener('click', () => {
+      if (!state.user) {
+        showLogin();
+        return;
+      }
+      els.userDropdown.classList.toggle('open');
+    });
     els.openAccountBtn.addEventListener('click', openAccountDialog);
     els.openSettingsBtn.addEventListener('click', openSettingsDialog);
     els.themeToggleBtn.addEventListener('click', toggleThemeMenu);
@@ -662,7 +757,7 @@
     });
     els.form.addEventListener('submit', saveSite);
 
-    applyTheme(storedTheme());
+    applyTheme(storedTheme() || themeOptions[0].value);
     bootstrap().catch(error => {
       els.grid.innerHTML = `<div class="empty">${error.message}</div>`;
     });

@@ -10,7 +10,7 @@
   <main class="wrap">
     <div class="topbar">
       <div class="user-menu" id="userMenu">
-        <button class="user-btn" id="userMenuBtn" type="button"><span id="currentUsername">admin</span> ▾</button>
+        <button class="user-btn" id="userMenuBtn" type="button"><span id="currentUsername">登录</span> ▾</button>
         <div class="user-dropdown" id="userDropdown">
           <button class="menu-item" id="openSettingsBtn" type="button">设置</button>
           <button class="menu-item" id="openAccountBtn" type="button">修改账号密码</button>
@@ -58,7 +58,7 @@
     </button>
   </div>
 
-  <div class="auth-screen" id="authScreen">
+  <div class="auth-screen hidden" id="authScreen">
     <div class="auth-card">
       <h2>登录导航站</h2>
       <p>请输入管理员账号密码</p>
@@ -73,6 +73,7 @@
         </div>
         <div class="error" id="loginError"></div>
         <button class="primary-btn" type="submit">登录</button>
+        <button class="ghost-btn" id="closeLoginBtn" type="button">暂不登录，继续浏览</button>
       </form>
     </div>
   </div>
@@ -210,6 +211,10 @@
           <div class="field full">
             <label for="subtitleInput">简介</label>
             <textarea id="subtitleInput" required></textarea>
+          </div>
+          <div class="field full">
+            <label for="defaultThemeInput">全局默认主题</label>
+            <select id="defaultThemeInput" required></select>
           </div>
         </div>
         <div class="form-actions">

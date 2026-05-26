@@ -235,6 +235,60 @@ func (s *SiteService) DeleteCategory(name string) (int, error) {
 	return updated, nil
 }
 
+// RenameCategory 将指定分类下的站点批量改到新的分类名。
+func (s *SiteService) RenameCategory(name, newName string) (int, error) {
+	name = strings.TrimSpace(name)
+	newName = strings.TrimSpace(newName)
+	if name == "" || name == "全部" {
+		return 0, ValidationError{Message: "不能编辑这个分类"}
+	}
+	if newName == "" || newName == "全部" {
+		return 0, ValidationError{Message: "分类名称不正确"}
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	sites, err := s.store.ListSites()
+	if err != nil {
+		return 0, StoreError{Op: StoreOpRead, Err: err}
+	}
+
+	updated := 0
+	targetExists := false
+	for _, site := range sites {
+		if site.Category == name {
+			updated++
+		}
+		if site.Category == newName && name != newName {
+			targetExists = true
+		}
+	}
+
+	if updated == 0 {
+		return 0, ErrNotFound
+	}
+	if targetExists {
+		return 0, ValidationError{Message: "分类名称已存在"}
+	}
+	if name == newName {
+		return updated, nil
+	}
+
+	now := time.Now().Format(time.RFC3339)
+	for i := range sites {
+		if sites[i].Category == name {
+			sites[i].Category = newName
+			sites[i].UpdatedAt = now
+		}
+	}
+
+	if err := s.store.SaveSites(sites); err != nil {
+		return 0, StoreError{Op: StoreOpSave, Err: err}
+	}
+	return updated, nil
+}
+
 // CategoryStats 统计每个非空分类下的站点数量。
 func (s *SiteService) CategoryStats() ([]domain.CategoryStat, error) {
 	sites, err := s.store.ListSites()
