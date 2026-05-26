@@ -38,6 +38,7 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("/api/categories/", h.requireAuth(h.handleCategoryByName))
 	mux.HandleFunc("/api/category-stats", h.requireAuth(h.handleCategoryStats))
 	mux.HandleFunc("/api/stats", h.requireAuth(h.handleStats))
+	mux.Handle("/static/", http.FileServerFS(h.static))
 	mux.HandleFunc("/", h.serveIndex)
 	return mux
 }

@@ -12,7 +12,7 @@ import (
 	httptransport "navigation/internal/transport/http"
 )
 
-//go:embed index.html
+//go:embed index.html static/*
 var staticFiles embed.FS
 
 func main() {
