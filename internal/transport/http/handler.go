@@ -12,15 +12,18 @@ import (
 	"navigation/internal/service"
 )
 
+// Handler 负责 HTTP 路由、请求解析和响应编码。
 type Handler struct {
 	service *service.SiteService
 	static  fs.FS
 }
 
+// NewHandler 创建 HTTP 处理器。
 func NewHandler(service *service.SiteService, static fs.FS) *Handler {
 	return &Handler{service: service, static: static}
 }
 
+// Routes 注册页面和 API 路由。
 func (h *Handler) Routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/sites", h.handleSites)

@@ -16,48 +16,60 @@ import (
 
 const defaultGlow = "rgba(96,165,250,.45)"
 
+// ErrNotFound 表示请求的站点或分类不存在。
 var ErrNotFound = errors.New("not found")
 
 const (
+	// StoreOpRead 标记存储层读取操作失败。
 	StoreOpRead = "read"
+	// StoreOpSave 标记存储层保存操作失败。
 	StoreOpSave = "save"
 )
 
+// StoreError 包装存储层错误，并保留失败操作类型供 HTTP 层映射响应。
 type StoreError struct {
 	Op  string
 	Err error
 }
 
+// Error 返回底层错误消息。
 func (e StoreError) Error() string {
 	return e.Err.Error()
 }
 
+// Unwrap 返回底层错误，便于 errors.Is 和 errors.As 识别。
 func (e StoreError) Unwrap() error {
 	return e.Err
 }
 
+// ValidationError 表示用户输入没有通过业务校验。
 type ValidationError struct {
 	Message string
 }
 
+// Error 返回可直接展示给用户的校验失败消息。
 func (e ValidationError) Error() string {
 	return e.Message
 }
 
+// SiteStore 定义站点服务依赖的持久化能力。
 type SiteStore interface {
 	ListSites() ([]domain.Site, error)
 	SaveSites([]domain.Site) error
 }
 
+// SiteService 封装站点、分类和统计相关的业务规则。
 type SiteService struct {
 	mu    sync.Mutex
 	store SiteStore
 }
 
+// NewSiteService 创建站点服务。
 func NewSiteService(store SiteStore) *SiteService {
 	return &SiteService{store: store}
 }
 
+// ListSites 按分类和关键字过滤站点，并返回稳定排序后的结果。
 func (s *SiteService) ListSites(category, query string) ([]domain.Site, error) {
 	category = strings.TrimSpace(category)
 	query = strings.ToLower(strings.TrimSpace(query))
@@ -85,6 +97,7 @@ func (s *SiteService) ListSites(category, query string) ([]domain.Site, error) {
 	return filtered, nil
 }
 
+// CreateSite 创建新站点，自动补齐 ID、时间戳和默认展示字段。
 func (s *SiteService) CreateSite(input domain.Site) (domain.Site, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -113,6 +126,7 @@ func (s *SiteService) CreateSite(input domain.Site) (domain.Site, error) {
 	return input, nil
 }
 
+// UpdateSite 更新指定站点，同时保留原始 ID、创建时间和排序位置。
 func (s *SiteService) UpdateSite(id string, input domain.Site) (domain.Site, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -144,6 +158,7 @@ func (s *SiteService) UpdateSite(id string, input domain.Site) (domain.Site, err
 	return domain.Site{}, ErrNotFound
 }
 
+// DeleteSite 删除指定站点。
 func (s *SiteService) DeleteSite(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -167,6 +182,7 @@ func (s *SiteService) DeleteSite(id string) error {
 	return ErrNotFound
 }
 
+// ListCategories 返回已有分类列表，首项固定为“全部”。
 func (s *SiteService) ListCategories() ([]string, error) {
 	sites, err := s.store.ListSites()
 	if err != nil {
@@ -185,6 +201,7 @@ func (s *SiteService) ListCategories() ([]string, error) {
 	return categories, nil
 }
 
+// DeleteCategory 删除分类名，并将该分类下的站点改为未分类。
 func (s *SiteService) DeleteCategory(name string) (int, error) {
 	name = strings.TrimSpace(name)
 	if name == "" || name == "全部" {
@@ -218,6 +235,7 @@ func (s *SiteService) DeleteCategory(name string) (int, error) {
 	return updated, nil
 }
 
+// CategoryStats 统计每个非空分类下的站点数量。
 func (s *SiteService) CategoryStats() ([]domain.CategoryStat, error) {
 	sites, err := s.store.ListSites()
 	if err != nil {
@@ -242,6 +260,7 @@ func (s *SiteService) CategoryStats() ([]domain.CategoryStat, error) {
 	return categories, nil
 }
 
+// Stats 返回站点总数、分类总数和固定覆盖率指标。
 func (s *SiteService) Stats() (domain.Stats, error) {
 	sites, err := s.store.ListSites()
 	if err != nil {

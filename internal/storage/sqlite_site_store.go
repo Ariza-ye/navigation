@@ -13,12 +13,14 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+// SQLiteSiteStore 使用 SQLite 持久化导航站点数据。
 type SQLiteSiteStore struct {
 	db       *sql.DB
 	dataPath string
 	jsonPath string
 }
 
+// NewSQLiteSiteStore 打开或初始化 SQLite 数据库，必要时从旧 JSON 文件导入数据。
 func NewSQLiteSiteStore(dataPath, jsonPath string) (*SQLiteSiteStore, error) {
 	store := &SQLiteSiteStore{dataPath: dataPath, jsonPath: jsonPath}
 	if err := store.ensureDatabase(); err != nil {
@@ -27,6 +29,7 @@ func NewSQLiteSiteStore(dataPath, jsonPath string) (*SQLiteSiteStore, error) {
 	return store, nil
 }
 
+// Close 关闭底层数据库连接。
 func (s *SQLiteSiteStore) Close() error {
 	return s.db.Close()
 }
@@ -97,6 +100,7 @@ func (s *SQLiteSiteStore) importLegacyJSONIfNeeded() error {
 	return s.SaveSites(sites)
 }
 
+// ListSites 读取全部站点，并按排序值和名称升序返回。
 func (s *SQLiteSiteStore) ListSites() ([]domain.Site, error) {
 	rows, err := s.db.Query(`
 		SELECT id, name, url, category, icon, description, glow, sort, created_at, updated_at
@@ -130,6 +134,7 @@ func (s *SQLiteSiteStore) ListSites() ([]domain.Site, error) {
 	return sites, rows.Err()
 }
 
+// SaveSites 在一个事务里用传入列表替换当前全部站点。
 func (s *SQLiteSiteStore) SaveSites(sites []domain.Site) error {
 	tx, err := s.db.Begin()
 	if err != nil {

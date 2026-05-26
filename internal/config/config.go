@@ -14,6 +14,7 @@ const (
 	defaultPort        = 8080
 )
 
+// Config 保存服务启动时解析出来的运行配置。
 type Config struct {
 	Port           int
 	DataDir        string
@@ -21,6 +22,7 @@ type Config struct {
 	LegacyJSONPath string
 }
 
+// ParseFlags 解析命令行参数，并生成 SQLite 与旧 JSON 数据文件路径。
 func ParseFlags() Config {
 	port := flag.Int("port", defaultPort, "HTTP server port")
 	dataDir := flag.String("data", defaultDataDir, "directory for SQLite data file")
