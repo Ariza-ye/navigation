@@ -1,5 +1,6 @@
 export type ThemeValue = 'dark' | 'morning' | 'forest' | 'plum'
 
+// 后端站点实体，字段名保持和 Go API 返回的 JSON 一致。
 export interface Site {
   id: string
   name: string
@@ -13,6 +14,7 @@ export interface Site {
   updatedAt: string
 }
 
+// 新增/编辑站点时不需要提交服务端生成的 ID 和时间戳。
 export type SiteInput = Omit<Site, 'id' | 'createdAt' | 'updatedAt'>
 
 export interface CategoryStat {
@@ -38,6 +40,7 @@ export interface User {
   username: string
 }
 
+// 保留 HTTP 状态码，方便页面区分未登录和普通业务错误。
 export class ApiError extends Error {
   status: number
 

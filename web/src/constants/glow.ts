@@ -1,3 +1,4 @@
+// 站点卡片右上角光效的预设颜色，value 会写入 CSS 变量 --glow。
 export const glowOptions = [
   { name: '星蓝', value: 'rgba(96,165,250,.45)' },
   { name: '青 cyan', value: 'rgba(34,211,238,.45)' },

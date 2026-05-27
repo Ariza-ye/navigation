@@ -10,6 +10,7 @@ import { useTheme } from './hooks/useTheme'
 
 type DialogName = null | 'site' | 'category' | 'emoji' | 'account' | 'settings'
 
+// 表单内部统一使用字符串，提交前再转换成后端需要的类型。
 interface SiteFormState {
   id: string
   name: string
@@ -21,6 +22,7 @@ interface SiteFormState {
   description: string
 }
 
+// 后端设置加载失败或首次渲染时使用的页面默认文案。
 const emptySettings: AppSettings = {
   siteTitle: '导航站',
   badge: 'DEV PORTAL / 个人导航站',
@@ -29,6 +31,7 @@ const emptySettings: AppSettings = {
   theme: 'dark'
 }
 
+// 新增站点时的初始表单状态。
 const emptySiteForm: SiteFormState = {
   id: '',
   name: '',
@@ -40,15 +43,18 @@ const emptySiteForm: SiteFormState = {
   description: ''
 }
 
+// React 的 style 类型默认不认识自定义 CSS 变量，这里做一次集中转换。
 function styleVars(vars: Record<string, string>) {
   return vars as CSSProperties
 }
 
+// 只有 401 会触发登录遮罩，其他错误交给具体操作展示文案。
 function isAuthError(error: unknown) {
   return error instanceof ApiError && error.status === 401
 }
 
 export default function App() {
+  // 列表、筛选和统计数据是首页核心展示状态。
   const [sites, setSites] = useState<Site[]>([])
   const [categories, setCategories] = useState<string[]>([])
   const [category, setCategory] = useState('全部')
@@ -56,6 +62,8 @@ export default function App() {
   const debouncedQuery = useDebouncedValue(query)
   const [stats, setStats] = useState<Stats>({ siteCount: 0, categoryCount: 0, coverage: '99%' })
   const [settings, setSettings] = useState<AppSettings>(emptySettings)
+
+  // 用户、弹窗和各类表单状态集中在 App 中，避免小项目过早引入全局状态管理。
   const [user, setUser] = useState<User | null>(null)
   const [activeDialog, setActiveDialog] = useState<DialogName>(null)
   const [editingSite, setEditingSite] = useState<Site | null>(null)
@@ -73,11 +81,13 @@ export default function App() {
   const [loadError, setLoadError] = useState('')
   const { theme, saveTheme } = useTheme(settings.theme)
 
+  // 当前主题对象用于渲染菜单文案和选中态。
   const currentTheme = useMemo(
     () => themeOptions.find(option => option.value === theme) || themeOptions[0],
     [theme]
   )
 
+  // 登录遮罩会关闭所有后台弹窗，避免未登录时继续操作受保护表单。
   const showLogin = useCallback(() => {
     setUser(null)
     setUserMenuOpen(false)
@@ -87,6 +97,7 @@ export default function App() {
     document.body.dataset.theme = theme
   }, [theme])
 
+  // 根据分类和搜索词生成站点列表接口地址，保持请求参数构造逻辑唯一。
   const siteQueryURL = useCallback((nextCategory: string, nextQuery: string) => {
     const params = new URLSearchParams()
     if (nextCategory && nextCategory !== '全部') params.set('category', nextCategory)
@@ -95,6 +106,7 @@ export default function App() {
     return suffix ? `/api/sites?${suffix}` : '/api/sites'
   }, [])
 
+  // 统一识别认证错误；调用方仍负责记录具体错误提示。
   const handleRequestError = useCallback((error: unknown) => {
     if (isAuthError(error)) {
       showLogin()
@@ -102,6 +114,7 @@ export default function App() {
     throw error
   }, [showLogin])
 
+  // 只刷新站点列表，用于搜索和分类切换，避免重复请求全量配置。
   const loadSitesOnly = useCallback(async (nextCategory = category, nextQuery = debouncedQuery) => {
     try {
       const data = await requestJSON<Site[]>(siteQueryURL(nextCategory, nextQuery))
@@ -112,6 +125,7 @@ export default function App() {
     }
   }, [category, debouncedQuery, handleRequestError, siteQueryURL])
 
+  // 首次进入、登录成功和增删改后刷新所有首页数据。
   const loadAll = useCallback(async (nextCategory = category, nextQuery = debouncedQuery) => {
     try {
       const [nextCategories, nextSites, nextStats, nextSettings] = await Promise.all([
@@ -130,10 +144,12 @@ export default function App() {
     }
   }, [category, debouncedQuery, handleRequestError, siteQueryURL])
 
+  // 页面标题跟随后台设置变化。
   useEffect(() => {
     document.title = settings.siteTitle
   }, [settings.siteTitle])
 
+  // 启动时先尝试恢复会话，再加载公开数据；未登录也允许浏览。
   useEffect(() => {
     requestJSON<User>('/api/session', { authPrompt: false })
       .then(setUser)
@@ -143,12 +159,14 @@ export default function App() {
       })
   }, [])
 
+  // 搜索词防抖后触发列表刷新。
   useEffect(() => {
     loadSitesOnly(category, debouncedQuery).catch(error => {
       setLoadError(error instanceof Error ? error.message : '加载失败')
     })
   }, [category, debouncedQuery])
 
+  // 关闭弹窗时顺手清理错误和下拉状态，避免下次打开看到旧状态。
   function closeDialog() {
     setActiveDialog(null)
     setFormError('')
@@ -157,6 +175,7 @@ export default function App() {
     setCategoryMenuOpen(false)
   }
 
+  // 新增和编辑共用一个站点弹窗，编辑时将后端字段映射回表单字符串。
   function openSiteDialog(site: Site | null = null) {
     if (!user) {
       setActiveDialog(null)
@@ -178,6 +197,7 @@ export default function App() {
     setActiveDialog('site')
   }
 
+  // 分类管理的数据只在打开弹窗时加载，减少首页首屏请求量。
   async function openCategoryDialog() {
     if (!user) {
       showLogin()
@@ -195,6 +215,7 @@ export default function App() {
     }
   }
 
+  // 登录成功后重新拉取全量数据，确保管理按钮和受保护信息同步显示。
   async function login(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setLoginError('')
@@ -216,12 +237,14 @@ export default function App() {
     }
   }
 
+  // 退出失败不影响本地登录态清理，后续受保护请求仍会被后端拦截。
   async function logout() {
     await requestJSON<null>('/api/logout', { method: 'POST' }).catch(() => null)
     setUser(null)
     setUserMenuOpen(false)
   }
 
+  // 保存站点时把排序字段转换为数字，空值按 0 交给后端处理默认排序。
   async function saveSite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!user) {
@@ -251,6 +274,7 @@ export default function App() {
     }
   }
 
+  // 删除站点需要用户确认，成功后刷新分类、统计和列表。
   async function deleteSite(site: Site) {
     if (!user) {
       showLogin()
@@ -266,6 +290,7 @@ export default function App() {
     }
   }
 
+  // 重命名当前选中的分类后同步切换筛选项，避免停留在旧分类名。
   async function renameCategory(stat: CategoryStat) {
     const nextName = prompt('请输入新的分类名称', stat.name)
     if (nextName === null) return
@@ -286,6 +311,7 @@ export default function App() {
     }
   }
 
+  // 删除分类只清空站点分类字段，不删除站点本身。
   async function deleteCategory(stat: CategoryStat) {
     const message = `确定删除「${stat.name}」分类吗？该分类下的 ${stat.count} 个站点会保留，但分类会被清空。`
     if (!confirm(message)) return
@@ -302,6 +328,7 @@ export default function App() {
     }
   }
 
+  // 修改账号或密码后以后端返回的用户名为准更新当前会话显示。
   async function saveAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setAccountError('')
@@ -323,6 +350,7 @@ export default function App() {
     }
   }
 
+  // 页面设置保存后立即更新当前页面，主题值在提交前做一次白名单归一化。
   async function saveSettings(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setSettingsError('')
@@ -346,10 +374,12 @@ export default function App() {
     }
   }
 
+  // 局部更新站点表单，保持 JSX 输入控件里的 onChange 简洁。
   function updateSiteForm(value: Partial<SiteFormState>) {
     setSiteForm(previous => ({ ...previous, ...value }))
   }
 
+  // 卡片上的编辑/删除按钮不能触发外层链接跳转。
   function stopCardAction(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault()
     event.stopPropagation()
@@ -358,6 +388,7 @@ export default function App() {
   return (
     <>
       <main className="wrap">
+        {/* 顶部用户菜单：未登录时点击直接打开登录遮罩。 */}
         <div className="topbar">
           <div className="user-menu" id="userMenu">
             <button
@@ -375,6 +406,7 @@ export default function App() {
           </div>
         </div>
 
+        {/* 首屏信息区：后台可配置文案，右侧承载搜索和统计。 */}
         <section className="hero">
           <div>
             <div className="badge"><span className="badge-dot"></span> <span>{settings.badge}</span></div>
@@ -391,6 +423,7 @@ export default function App() {
           </div>
         </section>
 
+        {/* 分类 tabs 由后端返回，“全部”分类作为默认入口。 */}
         <nav className="tabs">
           {categories.map(item => (
             <button
@@ -404,6 +437,7 @@ export default function App() {
           ))}
         </nav>
 
+        {/* 站点卡片区：登录后显示管理操作，普通访客只看到跳转卡片。 */}
         <div className="section-title">
           <h2>常用入口</h2>
           <div className="title-actions">
@@ -439,6 +473,7 @@ export default function App() {
         </section>
       </main>
 
+      {/* 主题切换器使用本地存储覆盖默认主题，不需要登录。 */}
       <div className="theme-switcher" id="themeSwitcher">
         <div className={`theme-menu${themeMenuOpen ? ' open' : ''}`}>
           {themeOptions.map(option => (
@@ -461,6 +496,7 @@ export default function App() {
         </button>
       </div>
 
+      {/* 登录遮罩独立于普通 Dialog，方便在 401 时从任意操作中弹出。 */}
       <div className={`auth-screen${loginVisible ? '' : ' hidden'}`}>
         <div className="auth-card">
           <h2>登录导航站</h2>
@@ -481,6 +517,7 @@ export default function App() {
         </div>
       </div>
 
+      {/* 站点编辑弹窗：新增和编辑共用同一组字段。 */}
       <Dialog open={activeDialog === 'site'} title={editingSite ? '编辑站点' : '新增站点'} onClose={closeDialog}>
         <form onSubmit={saveSite}>
           <div className="form-grid">
@@ -540,6 +577,7 @@ export default function App() {
         </form>
       </Dialog>
 
+      {/* emoji 选择作为二级弹窗，选中后回到站点编辑弹窗。 */}
       <Dialog open={activeDialog === 'emoji'} title="选择图标" onClose={() => setActiveDialog('site')}>
         <div className="emoji-grid">
           {emojiOptions.map(icon => (
@@ -550,6 +588,7 @@ export default function App() {
         </div>
       </Dialog>
 
+      {/* 分类管理只处理分类名，删除分类不会删除站点。 */}
       <Dialog open={activeDialog === 'category'} title="分类管理" onClose={closeDialog}>
         <div className="category-list">
           {categoryLoading ? <div className="empty">正在加载分类...</div> : null}
@@ -566,6 +605,7 @@ export default function App() {
         </div>
       </Dialog>
 
+      {/* 账号设置使用非受控表单，打开弹窗时用 key 强制重置默认值。 */}
       <Dialog open={activeDialog === 'account'} title="修改账号密码" onClose={closeDialog}>
         <form key={user?.username || 'anonymous'} onSubmit={saveAccount}>
           <div className="form-grid">
@@ -580,6 +620,7 @@ export default function App() {
         </form>
       </Dialog>
 
+      {/* 页面设置保存到后端，影响所有用户看到的默认页面文案。 */}
       <Dialog open={activeDialog === 'settings'} title="页面设置" onClose={closeDialog}>
         <form key={`${settings.siteTitle}-${settings.badge}-${settings.heroTitle}-${settings.subtitle}-${settings.theme}`} onSubmit={saveSettings}>
           <div className="form-grid">
@@ -603,6 +644,7 @@ export default function App() {
   )
 }
 
+// 通用弹窗容器：点击遮罩关闭，内容区点击不会冒泡到遮罩。
 function Dialog({ open, title, onClose, children }: { open: boolean; title: string; onClose: () => void; children: ReactNode }) {
   return (
     <div className={`dialog-backdrop${open ? ' open' : ''}`} aria-hidden={!open} onClick={event => {
@@ -619,6 +661,7 @@ function Dialog({ open, title, onClose, children }: { open: boolean; title: stri
   )
 }
 
+// 表单字段布局组件，full 用于横跨两列的输入项。
 function Field({ label, htmlFor, full = false, children }: { label: string; htmlFor: string; full?: boolean; children: ReactNode }) {
   return (
     <div className={`field${full ? ' full' : ''}`}>

@@ -1,3 +1,4 @@
+  /* 默认深色主题变量，其他主题通过 body[data-theme] 覆盖同一组语义变量。 */
   :root {
     color-scheme: dark;
     --page-text: oklch(96% .018 260);
@@ -31,6 +32,7 @@
     --danger-bg: oklch(30% .09 25 / .24);
     --danger-border: oklch(70% .16 24 / .32);
   }
+  /* 浅色晨光主题。 */
   body[data-theme="morning"] {
     color-scheme: light;
     --page-text: oklch(24% .035 75);
@@ -64,6 +66,7 @@
     --danger-bg: oklch(92% .05 30 / .68);
     --danger-border: oklch(68% .13 25 / .34);
   }
+  /* 深色森林主题。 */
   body[data-theme="forest"] {
     color-scheme: dark;
     --page-text: oklch(94% .022 145);
@@ -97,6 +100,7 @@
     --danger-bg: oklch(30% .09 25 / .24);
     --danger-border: oklch(70% .16 24 / .32);
   }
+  /* 浅色梅雾主题。 */
   body[data-theme="plum"] {
     color-scheme: light;
     --page-text: oklch(25% .045 315);
@@ -130,6 +134,8 @@
     --danger-bg: oklch(92% .05 30 / .68);
     --danger-border: oklch(68% .13 25 / .34);
   }
+
+  /* 全局重置和页面背景。 */
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     min-height: 100vh;
@@ -139,6 +145,7 @@
     overflow-x: hidden;
     transition: color .2s ease, background .25s ease;
   }
+  /* 固定网格纹理叠层，使用 mask 让背景在页面下方自然淡出。 */
   body::before {
     content: "";
     position: fixed; inset: 0;
@@ -147,6 +154,8 @@
     mask-image: var(--grid-mask);
     pointer-events: none;
   }
+
+  /* 页面主容器和顶部账号菜单。 */
   .wrap { width: min(1180px, calc(100% - 40px)); margin: 0 auto; padding: 56px 0 70px; position: relative; }
   .topbar { display:flex; justify-content:flex-end; margin-bottom:24px; position:relative; z-index:5; }
   .user-menu { position:relative; }
@@ -155,6 +164,8 @@
   .user-dropdown.open { display:block; }
   .menu-item { width:100%; display:block; padding:10px 11px; border:0; border-radius:12px; color:var(--page-text); background:transparent; text-align:left; cursor:pointer; }
   .menu-item:hover { background:var(--surface-hover); color:var(--page-text); }
+
+  /* Hero 区：左侧展示后台配置文案，右侧放搜索框和统计卡。 */
   .hero { display: grid; grid-template-columns: 1.2fr .8fr; gap: 26px; align-items: center; margin-bottom: 34px; }
   .badge { display:inline-flex; align-items:center; gap:8px; padding: 9px 14px; border:1px solid var(--border); border-radius:999px; background:var(--surface); backdrop-filter: blur(16px); color:var(--accent); font-size:14px; }
   .badge-dot { width:8px; height:8px; border-radius:50%; background:var(--accent-strong); box-shadow:0 0 18px var(--accent-strong); flex:0 0 auto; }
@@ -169,6 +180,8 @@
   .stat { padding:16px 14px; border-radius:18px; background:var(--surface); border:1px solid var(--border-soft); }
   .stat b { display:block; font-size:26px; margin-bottom:3px; }
   .stat small { color:var(--page-soft); }
+
+  /* 分类筛选和站点卡片列表。 */
   .tabs { display:flex; gap:10px; flex-wrap:wrap; margin: 16px 0 24px; }
   button { font: inherit; }
   .tab { padding:10px 15px; border-radius:999px; color:var(--page-muted); background: var(--surface); border:1px solid var(--border-soft); font-size:14px; cursor:pointer; }
@@ -191,6 +204,8 @@
   .title-actions span { color:var(--page-soft); font-size:14px; }
   .primary-btn { height:40px; padding:0 15px; border-radius:14px; border:0; color:var(--accent-text); background:var(--accent-bg); font-weight:700; cursor:pointer; }
   .empty { grid-column:1 / -1; min-height:170px; display:grid; place-items:center; border:1px dashed var(--border); border-radius:28px; color:var(--page-soft); background:var(--surface); }
+
+  /* 通用弹窗和表单基础样式。 */
   .dialog-backdrop { position:fixed; inset:0; display:none; place-items:center; padding:24px; background:oklch(12% .035 260 / .72); backdrop-filter:blur(12px); z-index:10; }
   .dialog-backdrop.open { display:grid; }
   .dialog { width:min(560px,100%); border-radius:24px; border:1px solid var(--border); background:var(--surface-solid); box-shadow:0 30px 90px var(--shadow-strong); padding:24px; }
@@ -204,6 +219,8 @@
   .field input, .field textarea, .field select { width:100%; border:1px solid var(--border-soft); border-radius:14px; background:var(--surface-input); color:var(--page-text); outline:none; padding:12px 13px; font-size:15px; }
   .field input:focus, .field textarea:focus, .field select:focus { border-color:var(--focus); box-shadow:0 0 0 3px var(--focus-ring); }
   .field textarea { min-height:86px; resize:vertical; }
+
+  /* 分类输入框支持手输和下拉选择两种方式。 */
   .category-picker { position:relative; }
   .category-input-wrap { display:flex; align-items:center; border:1px solid var(--border-soft); border-radius:14px; background:var(--surface-input); overflow:hidden; transition:.18s ease; }
   .category-input-wrap:focus-within { border-color:var(--focus); box-shadow:0 0 0 3px var(--focus-ring); }
@@ -218,6 +235,8 @@
   .category-option.active { color:var(--accent-text); background:var(--accent-bg); font-weight:700; }
   .category-option small { color:inherit; opacity:.68; }
   .category-empty { padding:10px 11px; color:var(--page-soft); font-size:13px; line-height:1.5; }
+
+  /* 站点卡片光效和 emoji 选择器。 */
   .glow-picker { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px; }
   .glow-option { height:42px; display:flex; align-items:center; justify-content:center; gap:8px; border-radius:14px; border:1px solid var(--border-soft); color:var(--page-text); background:var(--surface-input); cursor:pointer; }
   .glow-option::before { content:""; width:15px; height:15px; border-radius:50%; background:var(--swatch); box-shadow:0 0 18px var(--swatch); }
@@ -232,6 +251,8 @@
   .emoji-option { height:42px; border-radius:14px; border:1px solid var(--border-soft); color:var(--page-text); background:var(--surface-input); cursor:pointer; font-size:21px; }
   .emoji-option:hover { border-color:var(--border-hover); background:var(--surface-hover); }
   .emoji-option.active { border-color:var(--focus); background:var(--surface-hover); box-shadow:0 0 0 3px var(--focus-ring); }
+
+  /* 表单操作区、危险操作按钮和分类管理列表。 */
   .form-actions { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:18px; }
   .error { color:var(--danger-text); font-size:14px; min-height:20px; }
   .ghost-btn { height:40px; padding:0 15px; border-radius:14px; border:1px solid var(--border); color:var(--page-text); background:var(--surface); cursor:pointer; }
@@ -244,12 +265,16 @@
   .category-actions .danger-btn { height:34px; }
   .category-info b { display:block; margin-bottom:3px; }
   .category-info small { color:var(--page-soft); }
+
+  /* 登录遮罩独立于普通弹窗，层级更高。 */
   .auth-screen { position:fixed; inset:0; display:grid; place-items:center; padding:24px; background:oklch(12% .035 260 / .86); backdrop-filter:blur(16px); z-index:30; }
   .auth-screen.hidden { display:none; }
   .auth-card { width:min(430px,100%); padding:28px; border-radius:28px; border:1px solid var(--border); background:var(--surface-strong); box-shadow:0 30px 90px var(--shadow-strong); }
   .auth-card h2 { font-size:28px; margin-bottom:8px; }
   .auth-card p { color:var(--page-muted); line-height:1.7; margin-bottom:20px; }
   .auth-form { display:flex; flex-direction:column; gap:14px; }
+
+  /* 固定在左下角的主题切换器。 */
   .theme-switcher { position:fixed; left:24px; bottom:24px; z-index:6; }
   .theme-toggle { height:44px; display:flex; align-items:center; gap:8px; padding:0 15px; border-radius:999px; border:1px solid var(--border); color:var(--page-text); background:var(--surface-strong); box-shadow:0 18px 44px var(--shadow); backdrop-filter:blur(16px); cursor:pointer; }
   .theme-toggle:hover { border-color:var(--border-hover); background:var(--surface-hover); }
@@ -263,5 +288,7 @@
   .theme-swatch { width:12px; height:12px; border-radius:50%; background:var(--theme-swatch); box-shadow:0 0 18px var(--theme-swatch); }
   .theme-check { opacity:0; }
   .theme-option.active .theme-check { opacity:1; }
+
+  /* 响应式布局：平板变双列，手机变单列并压缩间距。 */
   @media (max-width: 950px){ .hero{grid-template-columns:1fr;} .grid{grid-template-columns:repeat(2,1fr);} }
   @media (max-width: 560px){ .wrap{width:min(100% - 24px,1180px); padding-top:28px;} .grid{grid-template-columns:1fr;} .stats{grid-template-columns:1fr;} h1{letter-spacing:-1px;} .section-title{align-items:flex-start; gap:12px; flex-direction:column;} .form-grid{grid-template-columns:1fr;} .card-actions{opacity:1;} .theme-switcher{left:12px; bottom:12px;} }
