@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 
@@ -12,7 +13,7 @@ import (
 	httptransport "navigation/internal/transport/http"
 )
 
-//go:embed index.html static/*
+//go:embed web/dist/*
 var staticFiles embed.FS
 
 func main() {
@@ -36,7 +37,11 @@ func main() {
 		log.Printf("账号密码已重置为: %s/%s", service.DefaultUsername, service.DefaultPassword)
 		return
 	}
-	handler := httptransport.NewHandler(svc, authSvc, staticFiles)
+	dist, err := fs.Sub(staticFiles, "web/dist")
+	if err != nil {
+		log.Fatalf("加载前端资源失败: %v", err)
+	}
+	handler := httptransport.NewHandler(svc, authSvc, dist)
 
 	addr := fmt.Sprintf(":%d", cfg.Port)
 	log.Printf("导航站已启动: http://localhost%s", addr)

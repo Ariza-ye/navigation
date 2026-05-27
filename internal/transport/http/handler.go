@@ -38,7 +38,7 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("/api/categories/", h.requireAuth(h.handleCategoryByName))
 	mux.HandleFunc("/api/category-stats", h.handleCategoryStats)
 	mux.HandleFunc("/api/stats", h.handleStats)
-	mux.Handle("/static/", http.FileServerFS(h.static))
+	mux.Handle("/assets/", http.FileServerFS(h.static))
 	mux.HandleFunc("/", h.serveIndex)
 	return mux
 }
@@ -67,11 +67,17 @@ func (h *Handler) ensureAuth(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func (h *Handler) serveIndex(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" && r.URL.Path != "/index.html" {
+	if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/assets/") {
 		http.NotFound(w, r)
 		return
 	}
-	http.ServeFileFS(w, r, h.static, "index.html")
+	index, err := fs.ReadFile(h.static, "index.html")
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write(index)
 }
 
 func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {

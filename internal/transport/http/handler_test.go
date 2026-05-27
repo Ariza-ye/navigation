@@ -60,7 +60,10 @@ func newTestHandler(t *testing.T) http.Handler {
 	if err != nil {
 		t.Fatalf("NewAuthService() error = %v", err)
 	}
-	static := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("index")}}
+	static := fstest.MapFS{
+		"index.html":    &fstest.MapFile{Data: []byte("index")},
+		"assets/app.js": &fstest.MapFile{Data: []byte("console.log('ok')")},
+	}
 	return NewHandler(service.NewSiteService(store), auth, static).Routes()
 }
 
@@ -74,6 +77,29 @@ func TestAnonymousReadEndpoints(t *testing.T) {
 			handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
 			if recorder.Code != http.StatusOK {
 				t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+			}
+		})
+	}
+}
+
+func TestStaticRoutes(t *testing.T) {
+	handler := newTestHandler(t)
+	requests := []struct {
+		path string
+		want int
+	}{
+		{path: "/", want: http.StatusOK},
+		{path: "/index.html", want: http.StatusOK},
+		{path: "/assets/app.js", want: http.StatusOK},
+		{path: "/assets/missing.js", want: http.StatusNotFound},
+	}
+
+	for _, request := range requests {
+		t.Run(request.path, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, request.path, nil))
+			if recorder.Code != request.want {
+				t.Fatalf("status = %d, want %d", recorder.Code, request.want)
 			}
 		})
 	}

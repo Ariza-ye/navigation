@@ -9,6 +9,13 @@ mkdir -p "$(dirname "$OUTPUT")"
 mkdir -p "$GOCACHE"
 
 cd "$ROOT_DIR"
+if [[ "${SKIP_WEB_BUILD:-0}" != "1" ]]; then
+  cd "$ROOT_DIR/web"
+  npm ci
+  npm run build
+  cd "$ROOT_DIR"
+fi
+
 GOCACHE="$GOCACHE" CGO_ENABLED="${CGO_ENABLED:-1}" go build -trimpath -ldflags="-s -w" -o "$OUTPUT" .
 
 echo "Built $OUTPUT"

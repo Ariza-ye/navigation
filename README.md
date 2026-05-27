@@ -1,6 +1,6 @@
 # navigation
 
-一个轻量级个人导航/书签站。后端使用 Go 1.22 提供 HTTP API，数据存储在 SQLite 中，前端由 `index.html` 和 `static/` 静态资源提供，并通过 Go embed 打包进二进制。
+一个轻量级个人导航/书签站。后端使用 Go 1.22 提供 HTTP API，数据存储在 SQLite 中，前端使用 Vite + React + TypeScript 构建，并通过 Go embed 打包进二进制。
 
 ## 功能
 
@@ -16,15 +16,14 @@
 
 - Go 1.22
 - SQLite，驱动为 `github.com/mattn/go-sqlite3`
-- 原生 HTML/CSS/JavaScript 前端
+- Vite + React + TypeScript 前端
 
 ## 项目结构
 
 ```text
 .
 ├── main.go                         # 程序入口，初始化配置、存储、服务和 HTTP 路由
-├── index.html                      # 前端入口页面
-├── static/                         # 前端 CSS 和 JavaScript 静态资源
+├── web/                            # React 前端工程，生产构建输出到 web/dist
 ├── internal/config                 # 命令行参数和运行配置
 ├── internal/domain                 # 领域模型
 ├── internal/service                # 站点、分类、账号、会话和设置业务逻辑
@@ -37,7 +36,10 @@
 
 ## 本地运行
 
+生产构建产物由 Go 服务直接提供：
+
 ```bash
+cd web && npm run build
 go run . -port 8080 -data data
 ```
 
@@ -47,6 +49,21 @@ go run . -port 8080 -data data
 http://localhost:8080
 ```
 默认账号密码：`admin/admin`。
+
+前端开发时建议同时启动 Go API 和 Vite dev server：
+
+```bash
+go run . -port 8080 -data data
+cd web && npm run dev
+```
+
+然后访问：
+
+```text
+http://127.0.0.1:5173
+```
+
+Vite 会把 `/api/*` 代理到 `http://127.0.0.1:8080`。
 
 重置账号密码：
 
@@ -68,6 +85,12 @@ bin/navigation -data data -reset-auth
 
 ```bash
 ./build.sh
+```
+
+构建脚本会先在 `web/` 下执行 `npm ci` 和 `npm run build`，再编译 Go 二进制。仅调试后端、且已经存在 `web/dist` 时，可以跳过前端构建：
+
+```bash
+SKIP_WEB_BUILD=1 ./build.sh
 ```
 
 默认输出到：
