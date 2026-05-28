@@ -8,22 +8,26 @@ import CategoryDialog from '@/components/CategoryDialog.vue'
 import CategoryTabs from '@/components/CategoryTabs.vue'
 import HeroSection from '@/components/HeroSection.vue'
 import LoginDialog from '@/components/LoginDialog.vue'
+import NoteWorkspace from '@/components/NoteWorkspace.vue'
 import SettingsDialog from '@/components/SettingsDialog.vue'
 import SiteDialog from '@/components/SiteDialog.vue'
 import SiteGrid from '@/components/SiteGrid.vue'
 import UiButton from '@/components/ui/Button.vue'
 import { useAuth } from '@/composables/useAuth'
+import { useNotes } from '@/composables/useNotes'
 import { useSettings } from '@/composables/useSettings'
 import { useSites } from '@/composables/useSites'
 import { useTheme } from '@/composables/useTheme'
 import { debounce } from '@/lib/utils'
-import type { AccountInput, AppSettings, CategoryStat, Site, SiteInput } from '@/types/api'
+import type { AccountInput, AppSettings, CategoryStat, Note, Site, SiteInput } from '@/types/api'
 
 const auth = useAuth()
 const sites = useSites()
+const notes = useNotes()
 const settingsStore = useSettings()
 const { applyDefaultTheme } = useTheme()
 
+const activeModule = ref<'sites' | 'notes'>('sites')
 const siteDialogOpen = ref(false)
 const editingSite = ref<Site | null>(null)
 const siteError = ref('')
@@ -45,6 +49,26 @@ const debouncedLoadSites = debounce(async () => {
 
 watch(sites.query, () => {
   debouncedLoadSites()
+})
+
+const debouncedLoadNotes = debounce(async () => {
+  if (!auth.user.value) return
+  try {
+    await notes.loadNotes()
+  } catch (error) {
+    if (auth.handleAuthError(error)) return
+    notes.error.value = error instanceof Error ? error.message : '读取笔记失败'
+  }
+}, 250)
+
+watch(notes.query, () => {
+  debouncedLoadNotes()
+})
+
+watch(auth.user, async (user) => {
+  if (user && activeModule.value === 'notes') {
+    await loadNotes()
+  }
 })
 
 async function bootstrap() {
@@ -150,6 +174,56 @@ async function changeCategory(category: string) {
   await sites.loadSitesOnly()
 }
 
+async function switchModule(module: 'sites' | 'notes') {
+  if (module === 'notes' && !auth.requireLogin()) return
+  activeModule.value = module
+  if (module === 'notes') {
+    await loadNotes()
+  }
+}
+
+async function loadNotes() {
+  try {
+    await notes.loadNotes()
+  } catch (error) {
+    if (auth.handleAuthError(error)) return
+    notes.error.value = error instanceof Error ? error.message : '读取笔记失败'
+  }
+}
+
+async function selectNote(note: Note) {
+  try {
+    await notes.selectNote(note)
+  } catch (error) {
+    if (auth.handleAuthError(error)) return
+    notes.error.value = error instanceof Error ? error.message : '读取笔记失败'
+  }
+}
+
+async function saveNote() {
+  try {
+    await notes.saveDraft()
+  } catch (error) {
+    if (auth.handleAuthError(error)) return
+    notes.error.value = error instanceof Error ? error.message : '保存笔记失败'
+  }
+}
+
+async function deleteNote() {
+  if (!notes.selected.value) return
+  if (!window.confirm(`确定删除「${notes.selected.value.title}」吗？文件会保留，笔记会被软删除。`)) return
+  try {
+    await notes.removeSelected()
+  } catch (error) {
+    if (auth.handleAuthError(error)) return
+    notes.error.value = error instanceof Error ? error.message : '删除笔记失败'
+  }
+}
+
+function updateNoteQuery(query: string) {
+  notes.query.value = query
+}
+
 onMounted(() => {
   bootstrap()
 })
@@ -158,33 +232,54 @@ onMounted(() => {
 <template>
   <AppShell
     :user="auth.user.value"
+    :active-module="activeModule"
     @login="auth.loginOpen.value = true"
     @account="accountDialogOpen = true"
     @settings="settingsDialogOpen = true"
     @logout="auth.logout"
+    @module="switchModule"
   >
-    <HeroSection v-model:query="sites.query.value" :settings="settingsStore.settings.value" :stats="sites.stats.value" />
-    <CategoryTabs :categories="sites.categories.value" :active="sites.category.value" @change="changeCategory" />
+    <template v-if="activeModule === 'sites'">
+      <HeroSection v-model:query="sites.query.value" :settings="settingsStore.settings.value" :stats="sites.stats.value" />
+      <CategoryTabs :categories="sites.categories.value" :active="sites.category.value" @change="changeCategory" />
 
-    <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <h2 class="text-2xl font-semibold text-[var(--page-text)]">常用入口</h2>
-        <p class="mt-1 text-sm text-[var(--page-soft)]">点击卡片快速访问</p>
+      <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 class="text-2xl font-semibold text-[var(--page-text)]">常用入口</h2>
+          <p class="mt-1 text-sm text-[var(--page-soft)]">点击卡片快速访问</p>
+        </div>
+        <div v-if="auth.user.value" class="flex flex-wrap gap-2">
+          <UiButton variant="outline" @click="openCategoryDialog">
+            <Tags class="h-4 w-4" /> 分类管理
+          </UiButton>
+          <UiButton @click="openSiteDialog()">
+            <Plus class="h-4 w-4" /> 新增站点
+          </UiButton>
+        </div>
       </div>
-      <div v-if="auth.user.value" class="flex flex-wrap gap-2">
-        <UiButton variant="outline" @click="openCategoryDialog">
-          <Tags class="h-4 w-4" /> 分类管理
-        </UiButton>
-        <UiButton @click="openSiteDialog()">
-          <Plus class="h-4 w-4" /> 新增站点
-        </UiButton>
-      </div>
-    </div>
 
-    <div v-if="bootError" class="mb-4 rounded-[16px] border border-[var(--danger-border)] bg-[var(--danger-bg)] px-4 py-3 text-sm text-[var(--danger-text)]">
-      {{ bootError }}
-    </div>
-    <SiteGrid :sites="sites.sites.value" :user="auth.user.value" @edit="openSiteDialog" @delete="removeSite" />
+      <div v-if="bootError" class="mb-4 rounded-[16px] border border-[var(--danger-border)] bg-[var(--danger-bg)] px-4 py-3 text-sm text-[var(--danger-text)]">
+        {{ bootError }}
+      </div>
+      <SiteGrid :sites="sites.sites.value" :user="auth.user.value" @edit="openSiteDialog" @delete="removeSite" />
+    </template>
+
+    <NoteWorkspace
+      v-else
+      :notes="notes.notes.value"
+      :selected="notes.selected.value"
+      :draft="notes.draft.value"
+      :loading="notes.loading.value"
+      :saving="notes.saving.value"
+      :error="notes.error.value"
+      :query="notes.query.value"
+      @new="notes.resetDraft"
+      @select="selectNote"
+      @save="saveNote"
+      @delete="deleteNote"
+      @search="updateNoteQuery"
+      @update:draft="notes.draft.value = $event"
+    />
   </AppShell>
 
   <LoginDialog

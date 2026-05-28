@@ -1,4 +1,4 @@
-import type { AccountInput, AppSettings, CategoryStat, LoginInput, Site, SiteInput, Stats, UserSession } from '@/types/api'
+import type { AccountInput, AppSettings, CategoryStat, LoginInput, Note, NoteContent, NoteInput, Site, SiteInput, Stats, UserSession } from '@/types/api'
 
 export class APIError extends Error {
   status: number
@@ -114,4 +114,34 @@ export function getStats() {
 
 export function getCategoryStats() {
   return requestJSON<CategoryStat[]>('/api/category-stats')
+}
+
+export function listNotes(params: { q?: string; status?: string } = {}) {
+  const search = new URLSearchParams()
+  if (params.q) search.set('q', params.q)
+  if (params.status) search.set('status', params.status)
+  const suffix = search.toString()
+  return requestJSON<Note[]>(suffix ? `/api/notes?${suffix}` : '/api/notes')
+}
+
+export function getNote(id: string) {
+  return requestJSON<NoteContent>(`/api/notes/${encodeURIComponent(id)}`)
+}
+
+export function createNote(input: NoteInput) {
+  return requestJSON<NoteContent>('/api/notes', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export function updateNote(id: string, input: NoteInput) {
+  return requestJSON<NoteContent>(`/api/notes/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  })
+}
+
+export function deleteNote(id: string) {
+  return requestJSON<null>(`/api/notes/${encodeURIComponent(id)}`, { method: 'DELETE' })
 }

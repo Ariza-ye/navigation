@@ -16,15 +16,16 @@ import (
 type Handler struct {
 	service *service.SiteService
 	auth    *service.AuthService
+	notes   *service.NoteService
 	static  fs.FS
 }
 
 // NewHandler 创建 HTTP 处理器。
-func NewHandler(service *service.SiteService, auth *service.AuthService, static fs.FS) *Handler {
+func NewHandler(service *service.SiteService, auth *service.AuthService, notes *service.NoteService, static fs.FS) *Handler {
 	if distFS, err := fs.Sub(static, "web/dist"); err == nil {
 		static = distFS
 	}
-	return &Handler{service: service, auth: auth, static: static}
+	return &Handler{service: service, auth: auth, notes: notes, static: static}
 }
 
 // Routes 注册页面和 API 路由。
@@ -37,6 +38,8 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("/api/settings", h.handleSettings)
 	mux.HandleFunc("/api/sites", h.handleSites)
 	mux.HandleFunc("/api/sites/", h.requireAuth(h.handleSiteByID))
+	mux.HandleFunc("/api/notes", h.requireAuth(h.handleNotes))
+	mux.HandleFunc("/api/notes/", h.requireAuth(h.handleNoteByID))
 	mux.HandleFunc("/api/categories", h.handleCategories)
 	mux.HandleFunc("/api/categories/", h.requireAuth(h.handleCategoryByName))
 	mux.HandleFunc("/api/category-stats", h.handleCategoryStats)
@@ -260,6 +263,70 @@ func (h *Handler) deleteSite(w http.ResponseWriter, id string) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *Handler) handleNotes(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		notes, err := h.notes.ListNotes(r.URL.Query().Get("status"), r.URL.Query().Get("q"))
+		if err != nil {
+			h.writeNoteServiceError(w, err, "没有找到这篇笔记")
+			return
+		}
+		writeJSON(w, http.StatusOK, notes)
+	case http.MethodPost:
+		var input domain.NoteContent
+		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+			writeError(w, http.StatusBadRequest, "请求数据格式不正确")
+			return
+		}
+		note, err := h.notes.CreateNote(input)
+		if err != nil {
+			h.writeNoteServiceError(w, err, "没有找到这篇笔记")
+			return
+		}
+		writeJSON(w, http.StatusCreated, note)
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "不支持的请求方法")
+	}
+}
+
+func (h *Handler) handleNoteByID(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimSpace(strings.TrimPrefix(r.URL.Path, "/api/notes/"))
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "缺少笔记 ID")
+		return
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		note, err := h.notes.GetNote(id)
+		if err != nil {
+			h.writeNoteServiceError(w, err, "没有找到这篇笔记")
+			return
+		}
+		writeJSON(w, http.StatusOK, note)
+	case http.MethodPut:
+		var input domain.NoteContent
+		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+			writeError(w, http.StatusBadRequest, "请求数据格式不正确")
+			return
+		}
+		note, err := h.notes.UpdateNote(id, input)
+		if err != nil {
+			h.writeNoteServiceError(w, err, "没有找到这篇笔记")
+			return
+		}
+		writeJSON(w, http.StatusOK, note)
+	case http.MethodDelete:
+		if err := h.notes.DeleteNote(id); err != nil {
+			h.writeNoteServiceError(w, err, "没有找到这篇笔记")
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "不支持的请求方法")
+	}
+}
+
 func (h *Handler) handleCategories(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeError(w, http.StatusMethodNotAllowed, "不支持的请求方法")
@@ -362,6 +429,29 @@ func (h *Handler) writeServiceError(w http.ResponseWriter, err error, notFoundMe
 		return
 	}
 	writeError(w, http.StatusInternalServerError, "保存站点数据失败")
+}
+
+func (h *Handler) writeNoteServiceError(w http.ResponseWriter, err error, notFoundMessage string) {
+	var validationErr service.ValidationError
+	if errors.As(err, &validationErr) {
+		writeError(w, http.StatusBadRequest, validationErr.Error())
+		return
+	}
+	if errors.Is(err, service.ErrNotFound) {
+		writeError(w, http.StatusNotFound, notFoundMessage)
+		return
+	}
+
+	var storeErr service.StoreError
+	if errors.As(err, &storeErr) {
+		if storeErr.Op == service.StoreOpRead {
+			writeError(w, http.StatusInternalServerError, "读取笔记数据失败")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "保存笔记数据失败")
+		return
+	}
+	writeError(w, http.StatusInternalServerError, "保存笔记数据失败")
 }
 
 func setSessionCookie(w http.ResponseWriter, token string) {

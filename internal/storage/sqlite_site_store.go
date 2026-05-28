@@ -72,6 +72,22 @@ func (s *SQLiteSiteStore) ensureDatabase() error {
 			key TEXT PRIMARY KEY,
 			value TEXT NOT NULL
 		);
+		CREATE TABLE IF NOT EXISTS notes (
+			id TEXT PRIMARY KEY,
+			title TEXT NOT NULL,
+			file_path TEXT NOT NULL UNIQUE,
+			summary TEXT NOT NULL DEFAULT '',
+			tags TEXT NOT NULL DEFAULT '[]',
+			status TEXT NOT NULL DEFAULT 'active',
+			pinned INTEGER NOT NULL DEFAULT 0,
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL,
+			deleted_at TEXT NOT NULL DEFAULT ''
+		);
+		CREATE INDEX IF NOT EXISTS idx_notes_status_updated_at
+		ON notes(status, updated_at DESC);
+		CREATE INDEX IF NOT EXISTS idx_notes_pinned_updated_at
+		ON notes(pinned DESC, updated_at DESC);
 	`); err != nil {
 		db.Close()
 		return err

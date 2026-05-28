@@ -34,6 +34,23 @@ export interface CategoryStat {
   count: number
 }
 
+export interface Note {
+  id: string
+  title: string
+  filePath: string
+  summary: string
+  tags: string[]
+  status: 'active' | 'archived' | 'deleted'
+  pinned: boolean
+  createdAt: string
+  updatedAt: string
+  deletedAt?: string
+}
+
+export interface NoteContent extends Note {
+  content: string
+}
+
 export interface LoginInput {
   username: string
   password: string
@@ -46,3 +63,4 @@ export interface AccountInput {
 }
 
 export type SiteInput = Pick<Site, 'name' | 'url' | 'category' | 'icon' | 'description' | 'glow' | 'sort'>
+export type NoteInput = Pick<NoteContent, 'title' | 'content' | 'tags' | 'status' | 'pinned'>

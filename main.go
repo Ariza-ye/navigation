@@ -25,6 +25,11 @@ func main() {
 	defer store.Close()
 
 	svc := service.NewSiteService(store)
+	noteFiles, err := storage.NewNoteFileStore(cfg.DataDir)
+	if err != nil {
+		log.Fatalf("初始化笔记目录失败: %v", err)
+	}
+	noteSvc := service.NewNoteService(store, noteFiles)
 	authSvc, err := service.NewAuthService(store)
 	if err != nil {
 		log.Fatalf("初始化账号失败: %v", err)
@@ -36,7 +41,7 @@ func main() {
 		log.Printf("账号密码已重置为: %s/%s", service.DefaultUsername, service.DefaultPassword)
 		return
 	}
-	handler := httptransport.NewHandler(svc, authSvc, staticFiles)
+	handler := httptransport.NewHandler(svc, authSvc, noteSvc, staticFiles)
 
 	addr := fmt.Sprintf(":%d", cfg.Port)
 	log.Printf("导航站已启动: http://localhost%s", addr)
